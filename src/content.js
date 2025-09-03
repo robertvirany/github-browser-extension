@@ -77,6 +77,9 @@
     const selectors = [
       'section[aria-labelledby="files"]',
       'div[aria-labelledby="files"]',
+      '[data-testid="filesystem-browser"]',
+      'div[data-test-selector="files-container"]',
+      'div[role="treegrid"]',
       'table[role="grid"]',
       'div.js-navigation-container',
     ];
@@ -94,10 +97,13 @@
     const candidates = [
       'div[role="row"][data-test-selector="tree-row"]',
       'div[role="row"].react-directory-row',
+      'div[role="rowgroup"] > div[role="row"]',
+      'div[aria-labelledby="files"] [role="row"]',
+      '[data-testid="filesystem-browser"] [role="row"]',
       'div.js-navigation-container > div.js-navigation-item',
       'div.Box > div.Box-row',
       'table[role="grid"] tbody tr',
-      'div[aria-labelledby="files"] [role="row"]',
+      'main [role="row"]',
     ];
     for (const q of candidates) {
       const rows = Array.from(container.querySelectorAll(q));
@@ -287,7 +293,14 @@
       log('no container found');
       return;
     }
-    const rows = findRows(container);
+    let rows = findRows(container);
+    if (!rows.length) {
+      // Fallback: try obvious anchors within container
+      const anchors = Array.from(container.querySelectorAll('a[href*="/blob/"], a[href*="/tree/"]'));
+      if (anchors.length) {
+        rows = anchors.map((a) => a.closest('[role="row"], tr, .Box-row, .js-navigation-item') || a.parentElement).filter(Boolean);
+      }
+    }
     if (!rows.length) {
       log('no rows found in container');
       return;
@@ -327,8 +340,15 @@
     });
     mo.observe(target, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-turbo', 'data-pjax'] });
 
-    // Initial run
+    // Initial run plus a brief retry loop to catch late renders
     run();
+    let tries = 0;
+    const maxTries = 14; // ~7s at 500ms
+    const iv = setInterval(() => {
+      tries++;
+      run();
+      if (tries >= maxTries) clearInterval(iv);
+    }, 500);
   }
 
   function debounce(fn, ms) {
