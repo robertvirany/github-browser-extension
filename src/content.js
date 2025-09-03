@@ -58,18 +58,21 @@
 
   // Try to detect rows reliably across GitHub UI changes
   function findFileListContainer(root = document) {
+    // Only operate within the main files box. Avoid broad containers
+    // so we don't touch markdown previews or other panels.
     const selectors = [
-      'turbo-frame#repo-content-turbo-frame',
-      '#repo-content-pjax-container',
-      'div[data-testid="repository-content"]',
-      'div[data-target="react-app.embeddedContainer"]',
-      'div.repository-content'
+      'section[aria-labelledby="files"]',
+      'div[aria-labelledby="files"]',
+      // Some layouts render the file list inside a grid/table without the wrapper
+      'table[role="grid"]',
+      'div.js-navigation-container',
     ];
     for (const sel of selectors) {
       const el = root.querySelector(sel);
       if (el) return el;
     }
-    return root.body || root;
+    // If no specific file-list container found, do nothing on this page.
+    return null;
   }
 
   function findRows(container) {
@@ -86,19 +89,8 @@
       const rows = Array.from(container.querySelectorAll(q));
       if (rows.length) return rows;
     }
-    // Fallback: visible links to blob/tree grouped by nearest row-like parent
-    const links = Array.from(container.querySelectorAll('a[href]'))
-      .filter((a) => /\/blob\//.test(a.getAttribute('href')) || /\/tree\//.test(a.getAttribute('href')));
-    const rows = new Set();
-    for (const a of links) {
-      let p = a.parentElement;
-      while (p && p !== container) {
-        const isRow = p.matches?.('div, tr, li, article');
-        if (isRow) { rows.add(p); break; }
-        p = p.parentElement;
-      }
-    }
-    return Array.from(rows);
+    // No fallback: if we can't find structured rows, skip.
+    return [];
   }
 
   function extractMainLink(row) {
@@ -118,18 +110,25 @@
   function isDirHref(href) { return /\/tree\//.test(href); }
   function isFileHref(href) { return /\/blob\//.test(href); }
 
-  function ensureCounterEl(row) {
-    // Try to append to a right-aligned cell/area when it exists
+  function ensureCounterEl(row, mainLink) {
+    const span = document.createElement('span');
+    span.className = 'ghh-counter badge';
+    span.textContent = '…';
+
+    // Special case: parent-directory row ("..") — place counter right next to it
+    const linkText = (mainLink?.textContent || '').trim();
+    if (linkText === '..') {
+      mainLink.insertAdjacentElement('afterend', span);
+      return span;
+    }
+
+    // Default: append to a right-aligned area when possible
     let right = row.querySelector('.ghh-row-right');
     if (!right) {
       right = document.createElement('span');
       right.className = 'ghh-row-right ghh-align-right';
-      // Prefer appending near the end
       (row.querySelector('[role="gridcell"]:last-child') || row.lastElementChild || row).appendChild(right);
     }
-    const span = document.createElement('span');
-    span.className = 'ghh-counter badge';
-    span.textContent = '…';
     right.appendChild(span);
     return span;
   }
@@ -157,20 +156,67 @@
     const key = 'dir:' + abs;
     const cached = cacheGet(key);
     if (typeof cached === 'number') return cached;
+
     const res = await fetch(abs, { method: 'GET' });
     if (!res.ok) throw new Error('fetch ' + res.status);
     const html = await res.text();
     const doc = new DOMParser().parseFromString(html, 'text/html');
-    const container = findFileListContainer(doc);
-    const rows = findRows(container);
-    // Count only rows that have a main link to blob/tree
-    const count = rows.reduce((acc, row) => {
-      const a = extractMainLink(row);
-      if (!a) return acc;
-      const href = a.getAttribute('href') || '';
-      if (isDirHref(href) || isFileHref(href)) return acc + 1;
-      return acc;
-    }, 0);
+
+    // Derive strict child path prefixes from the current directory URL so we
+    // only count direct children under this path, avoiding extra page links.
+    let count = 0;
+    try {
+      const u = new URL(abs);
+      const m = u.pathname.match(/^\/([^/]+)\/([^/]+)\/tree\/([^/]+)(?:\/(.*))?$/);
+      if (m) {
+        const owner = m[1];
+        const repo = m[2];
+        const branch = m[3];
+        const dirPath = m[4] || '';
+        const base = `/${owner}/${repo}/`;
+        const prefixCore = `${branch}/${dirPath ? dirPath + '/' : ''}`;
+        const prefixes = [
+          base + 'blob/' + prefixCore,
+          base + 'tree/' + prefixCore,
+        ];
+
+        const anchors = Array.from(doc.querySelectorAll('a[href]'));
+        const seen = new Set();
+        for (const a of anchors) {
+          const href = a.getAttribute('href');
+          if (!href) continue;
+          // Ignore full external links
+          if (/^https?:\/\//i.test(href)) continue;
+          const p = new URL(href, location.origin).pathname;
+          for (const pref of prefixes) {
+            if (p.startsWith(pref)) {
+              const rest = p.slice(pref.length);
+              // Direct children only: remaining path must be a single segment
+              if (rest.length > 0 && !rest.includes('/')) {
+                seen.add(p);
+              }
+            }
+          }
+        }
+        count = seen.size;
+      }
+    } catch (e) {
+      log('dir count parse error', e);
+    }
+
+    // Fallback: try row-based counting if prefix logic failed
+    if (!count) {
+      const container = findFileListContainer(doc);
+      const rows = findRows(container);
+      count = rows.reduce((acc, row) => {
+        const a = extractMainLink(row);
+        if (!a) return acc;
+        const href = a.getAttribute('href') || '';
+        if (isDirHref(href) || isFileHref(href)) return acc + 1;
+        return acc;
+      }, 0);
+    }
+
     cacheSet(key, count);
     return count;
   }
@@ -189,13 +235,13 @@
     if (!link) return;
     const href = link.getAttribute('href');
     if (!href) return;
-    const span = ensureCounterEl(row);
+    const span = ensureCounterEl(row, link);
     markProcessed(row);
 
     if (isFileHref(href)) {
       try {
         const lines = await limit(() => countFileLOCFromRaw(href));
-        span.textContent = `${lines.toLocaleString()} LOC`;
+        span.textContent = `${lines.toLocaleString()} loc`;
         span.title = 'Lines of code (counted via raw content)';
       } catch (e) {
         span.textContent = '—';
@@ -218,6 +264,11 @@
   }
 
   async function processFileList(root = document) {
+    // Restrict to repository root or /tree/... pages only
+    const path = location.pathname;
+    const treeLike = /^\/[^/]+\/[^/]+(?:\/tree\/[^/]+(?:\/.*)?)?$/;
+    if (!treeLike.test(path)) return;
+
     const container = findFileListContainer(root);
     if (!container) return;
     const rows = findRows(container);
@@ -275,4 +326,3 @@
     setupObservers();
   }
 })();
-
