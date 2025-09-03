@@ -58,21 +58,35 @@
 
   // Try to detect rows reliably across GitHub UI changes
   function findFileListContainer(root = document) {
-    // Only operate within the main files box. Avoid broad containers
-    // so we don't touch markdown previews or other panels.
+    // First, scope to the main repo content area if present
+    const scopes = [
+      'turbo-frame#repo-content-turbo-frame',
+      '#repo-content-pjax-container',
+      'main',
+      'div[data-testid="repository-content"]',
+      'div.repository-content'
+    ];
+    let scopeEl = null;
+    for (const s of scopes) {
+      const el = root.querySelector(s);
+      if (el) { scopeEl = el; break; }
+    }
+    const scope = scopeEl || root;
+
+    // Then, within that scope, try known file-list containers
     const selectors = [
       'section[aria-labelledby="files"]',
       'div[aria-labelledby="files"]',
-      // Some layouts render the file list inside a grid/table without the wrapper
       'table[role="grid"]',
       'div.js-navigation-container',
     ];
     for (const sel of selectors) {
-      const el = root.querySelector(sel);
+      const el = scope.querySelector(sel);
       if (el) return el;
     }
-    // If no specific file-list container found, do nothing on this page.
-    return null;
+
+    // Fall back to the scoped container; row-finder will verify
+    return scope;
   }
 
   function findRows(container) {
@@ -89,7 +103,7 @@
       const rows = Array.from(container.querySelectorAll(q));
       if (rows.length) return rows;
     }
-    // No fallback: if we can't find structured rows, skip.
+    // No structured rows found — return empty and let caller decide.
     return [];
   }
 
@@ -270,8 +284,15 @@
     if (!treeLike.test(path)) return;
 
     const container = findFileListContainer(root);
-    if (!container) return;
+    if (!container) {
+      log('no container found');
+      return;
+    }
     const rows = findRows(container);
+    if (!rows.length) {
+      log('no rows found in container');
+      return;
+    }
     rows.forEach((row) => processRow(row));
   }
 
