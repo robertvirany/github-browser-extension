@@ -1,0 +1,29 @@
+{
+  "manifest_version": 3,
+  "name": "GitHub Helper: LOC & Dir Counts",
+  "description": "Augments GitHub repo file lists with LOC for files and entry counts for directories.",
+  "version": "0.1.0",
+  "permissions": [
+    "storage"
+  ],
+  "host_permissions": [
+    "https://github.com/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://github.com/*"
+      ],
+      "js": [
+        "src/content.js"
+      ],
+      "css": [
+        "src/content.css"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_title": "GitHub Helper"
+  }
+}

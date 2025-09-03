@@ -1,0 +1,27 @@
+/* Minimal, unobtrusive styling for injected counters */
+.ghh-counter {
+  font-size: 12px;
+  color: var(--fgColor-muted, #57606a);
+  margin-left: 8px;
+  white-space: nowrap;
+}
+
+.ghh-counter.badge {
+  background: var(--bgColor-muted, #f6f8fa);
+  border: 1px solid var(--borderColor-muted, #d0d7de);
+  border-radius: 12px;
+  padding: 2px 6px;
+}
+
+.ghh-row-right {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Try to align to the right edge when possible */
+.ghh-align-right {
+  float: right;
+}
+
