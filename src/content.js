@@ -129,14 +129,13 @@
     span.className = 'ghh-counter badge';
     span.textContent = '…';
 
-    // Special case: parent-directory row ("..") — place counter right next to it
-    const linkText = (mainLink?.textContent || '').trim();
-    if (linkText === '..') {
+    // Default and most visible: place right after the filename/link
+    if (mainLink) {
       mainLink.insertAdjacentElement('afterend', span);
       return span;
     }
 
-    // Default: append to a right-aligned area when possible
+    // Fallback: append near the right edge if we couldn't find the main link
     let right = row.querySelector('.ghh-row-right');
     if (!right) {
       right = document.createElement('span');
