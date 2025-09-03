@@ -88,8 +88,9 @@
       if (el) return el;
     }
 
-    // Fall back to the scoped container; row-finder will verify
-    return scope;
+    // No reliable file-list container found — avoid falling back to a broad
+    // scope like `main` to prevent touching README render content.
+    return null;
   }
 
   function findRows(container) {
@@ -252,6 +253,8 @@
     if (alreadyProcessed(row)) return;
     const link = extractMainLink(row);
     if (!link) return;
+    // Skip links inside README/article content
+    if (link.closest('#readme, article.markdown-body')) return;
     const href = link.getAttribute('href');
     if (!href) return;
     const span = ensureCounterEl(row, link);
@@ -296,7 +299,12 @@
     let rows = findRows(container);
     if (!rows.length) {
       // Fallback: try obvious anchors within container
-      const anchors = Array.from(container.querySelectorAll('a[href*="/blob/"], a[href*="/tree/"]'));
+      const anchors = Array.from(
+        container.querySelectorAll(
+          ':scope :not(#readme):not(article.markdown-body) a[href*="/blob/"], '
+          + ':scope :not(#readme):not(article.markdown-body) a[href*="/tree/"]'
+        )
+      );
       if (anchors.length) {
         rows = anchors.map((a) => a.closest('[role="row"], tr, .Box-row, .js-navigation-item') || a.parentElement).filter(Boolean);
       }
