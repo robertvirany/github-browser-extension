@@ -25,3 +25,8 @@
   float: right;
 }
 
+/* Never show counters inside README/article content, even if injected */
+#readme .ghh-counter,
+article.markdown-body .ghh-counter {
+  display: none !important;
+}
