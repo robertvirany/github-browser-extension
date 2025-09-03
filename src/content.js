@@ -227,7 +227,7 @@
     // Fallback: try row-based counting if prefix logic failed
     if (!count) {
       const container = findFileListContainer(doc);
-      const rows = findRows(container);
+      const rows = container ? findRows(container) : [];
       count = rows.reduce((acc, row) => {
         const a = extractMainLink(row);
         if (!a) return acc;
