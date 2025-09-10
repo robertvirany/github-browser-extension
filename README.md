@@ -30,3 +30,8 @@ Development
 - The code is plain JS/CSS — no build step. Modify files under `src/` and reload the extension.
 - Open DevTools on a GitHub tab to see `[GHH]` logs.
 
+TODO
+- Add dir support
+- Add caching to not piss off Github
+- Make popup non-shit
+- Add caching

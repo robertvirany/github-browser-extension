@@ -1,5 +1,5 @@
 .loc-bubble {
-  margin-left: auto; /* pushes it right side in flex row */
+  margin-left: 6px; /* pushes it right side in flex row */
   font-size: 12px;
   color: #57606a;
   background: #f6f8fa;
