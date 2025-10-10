@@ -18,6 +18,17 @@ function blobToSameOriginRaw(blobUrl) {
   }
 }
 
+function countLines(text) {
+  if (text === '') return 0;
+  if (text.endsWith('\n')) {
+    // drop the trailing empty element introduced by the newline
+    const withoutTrailingNewline = text.slice(0, -1);
+    if (withoutTrailingNewline === '') return 0;
+    return withoutTrailingNewline.split('\n').length;
+  }
+  return text.split('\n').length;
+}
+
 const fileLocCache = new Map();
 
 async function getLOC(blobUrl) {
@@ -33,7 +44,7 @@ async function getLOC(blobUrl) {
       const sameOriginRes = await fetch(sameOriginRawUrl, { credentials: 'same-origin' });
       if (sameOriginRes.ok) {
         const text = await sameOriginRes.text();
-        const lines = text.split('\n').length;
+        const lines = countLines(text);
         fileLocCache.set(blobUrl, lines);
         return lines;
       }
@@ -42,7 +53,7 @@ async function getLOC(blobUrl) {
     const res = await fetch(rawUrl);
     if (res.ok) {
       const text = await res.text();
-      const lines = text.split('\n').length;
+      const lines = countLines(text);
       fileLocCache.set(blobUrl, lines);
       return lines;
     }
@@ -68,7 +79,7 @@ async function getLOC(blobUrl) {
 
     const plain = doc.querySelector('pre');
     if (plain) {
-      const count = plain.textContent.split('\n').length;
+      const count = countLines(plain.textContent);
       fileLocCache.set(blobUrl, count);
       return count;
     }
