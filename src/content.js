@@ -4,6 +4,20 @@ function blobToRawUrl(blobUrl) {
     .replace('/blob/', '/');
 }
 
+function blobToSameOriginRaw(blobUrl) {
+  try {
+    const url = new URL(blobUrl);
+    if (!url.pathname.includes('/blob/')) return null;
+    url.pathname = url.pathname.replace('/blob/', '/raw/');
+    url.search = '';
+    url.hash = '';
+    return url.toString();
+  } catch (err) {
+    console.error('Failed to build same-origin raw URL:', err);
+    return null;
+  }
+}
+
 const fileLocCache = new Map();
 
 async function getLOC(blobUrl) {
@@ -11,9 +25,20 @@ async function getLOC(blobUrl) {
     return fileLocCache.get(blobUrl);
   }
 
+  const sameOriginRawUrl = blobToSameOriginRaw(blobUrl);
   const rawUrl = blobToRawUrl(blobUrl);
 
   try {
+    if (sameOriginRawUrl) {
+      const sameOriginRes = await fetch(sameOriginRawUrl, { credentials: 'same-origin' });
+      if (sameOriginRes.ok) {
+        const text = await sameOriginRes.text();
+        const lines = text.split('\n').length;
+        fileLocCache.set(blobUrl, lines);
+        return lines;
+      }
+    }
+
     const res = await fetch(rawUrl);
     if (res.ok) {
       const text = await res.text();
