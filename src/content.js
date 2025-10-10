@@ -186,8 +186,8 @@ async function decorateEntry(file) {
   }
 }
 
-async function decorateDirectoryList(root = document) {
-  const entries = root.querySelectorAll('.react-directory-truncate a.Link--primary');
+async function decorateDirectoryList() {
+  const entries = document.querySelectorAll('.react-directory-truncate a.Link--primary');
   await Promise.all([...entries].map(decorateEntry));
 }
 
@@ -195,39 +195,85 @@ let directoryObserver;
 
 let containerObserver;
 
-function attachDirectoryObserver(container) {
-  if (!container) return;
+function nodeContainsDirectoryEntry(node) {
+  if (node instanceof Element) {
+    if (node.matches('.react-directory-truncate') && node.querySelector('a.Link--primary')) {
+      return true;
+    }
+    if (node.matches('a.Link--primary')) {
+      return true;
+    }
+    if (node.querySelector('.react-directory-truncate a.Link--primary')) {
+      return true;
+    }
+    return false;
+  }
 
+  if (node instanceof DocumentFragment) {
+    return Boolean(node.querySelector('.react-directory-truncate a.Link--primary'));
+  }
+
+  return false;
+}
+
+function attachDirectoryObserver() {
   if (directoryObserver) {
     directoryObserver.disconnect();
   }
 
-  directoryObserver = new MutationObserver(() => {
-    queueMicrotask(() => decorateDirectoryList(container));
+  directoryObserver = new MutationObserver(mutations => {
+    let shouldDecorate = false;
+
+    for (const mutation of mutations) {
+      if (mutation.type !== 'childList') continue;
+      for (const node of mutation.addedNodes) {
+        if (nodeContainsDirectoryEntry(node)) {
+          shouldDecorate = true;
+          break;
+        }
+      }
+      if (shouldDecorate) break;
+    }
+
+    if (shouldDecorate) {
+      queueMicrotask(() => decorateDirectoryList());
+    }
   });
 
-  directoryObserver.observe(container, {
+  directoryObserver.observe(document.body, {
     subtree: true,
     childList: true
   });
 }
 
-function waitForDirectoryContainer() {
-  const container = document.querySelector('.react-directory-truncate');
-  if (container) {
-    decorateDirectoryList(container);
-    attachDirectoryObserver(container);
+function waitForDirectoryContent() {
+  const hasEntries = document.querySelector('.react-directory-truncate a.Link--primary');
+  if (hasEntries) {
+    decorateDirectoryList();
+    attachDirectoryObserver();
     return;
   }
 
   if (!containerObserver) {
-    containerObserver = new MutationObserver(() => {
-      const found = document.querySelector('.react-directory-truncate');
-      if (found) {
+    containerObserver = new MutationObserver(mutations => {
+      for (const mutation of mutations) {
+        if (mutation.type !== 'childList') continue;
+        for (const node of mutation.addedNodes) {
+          if (nodeContainsDirectoryEntry(node)) {
+            containerObserver.disconnect();
+            containerObserver = null;
+            decorateDirectoryList();
+            attachDirectoryObserver();
+            return;
+          }
+        }
+      }
+
+      if (document.querySelector('.react-directory-truncate a.Link--primary')) {
         containerObserver.disconnect();
         containerObserver = null;
-        decorateDirectoryList(found);
-        attachDirectoryObserver(found);
+        decorateDirectoryList();
+        attachDirectoryObserver();
       }
     });
 
@@ -239,7 +285,7 @@ function waitForDirectoryContainer() {
 }
 
 function init() {
-  waitForDirectoryContainer();
+  waitForDirectoryContent();
 }
 
 init();
@@ -249,5 +295,9 @@ document.addEventListener('turbo:load', () => {
     containerObserver.disconnect();
     containerObserver = null;
   }
-  waitForDirectoryContainer();
+  if (directoryObserver) {
+    directoryObserver.disconnect();
+    directoryObserver = null;
+  }
+  waitForDirectoryContent();
 });
