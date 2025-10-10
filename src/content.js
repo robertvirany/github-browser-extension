@@ -121,7 +121,12 @@ async function getDirChildrenCount(fileHref) {
       const label = anchor.getAttribute('aria-label') || '';
       return label.includes('(File)') || label.includes('(Directory)');
     });
-    const count = entries.length;
+    const uniqueHrefs = new Set();
+    entries.forEach(anchor => {
+      const href = anchor.getAttribute('href');
+      if (href) uniqueHrefs.add(href);
+    });
+    const count = uniqueHrefs.size;
     dirCountCache.set(fileHref, count);
     return count;
   } catch (err) {
