@@ -193,8 +193,9 @@ async function decorateDirectoryList(root = document) {
 
 let directoryObserver;
 
-function observeDirectory(root = document) {
-  const container = root.querySelector('.react-directory-truncate');
+let containerObserver;
+
+function attachDirectoryObserver(container) {
   if (!container) return;
 
   if (directoryObserver) {
@@ -202,7 +203,6 @@ function observeDirectory(root = document) {
   }
 
   directoryObserver = new MutationObserver(() => {
-    // defer execution to batch mutations
     queueMicrotask(() => decorateDirectoryList(container));
   });
 
@@ -212,11 +212,42 @@ function observeDirectory(root = document) {
   });
 }
 
+function waitForDirectoryContainer() {
+  const container = document.querySelector('.react-directory-truncate');
+  if (container) {
+    decorateDirectoryList(container);
+    attachDirectoryObserver(container);
+    return;
+  }
+
+  if (!containerObserver) {
+    containerObserver = new MutationObserver(() => {
+      const found = document.querySelector('.react-directory-truncate');
+      if (found) {
+        containerObserver.disconnect();
+        containerObserver = null;
+        decorateDirectoryList(found);
+        attachDirectoryObserver(found);
+      }
+    });
+
+    containerObserver.observe(document.body, {
+      childList: true,
+      subtree: true
+    });
+  }
+}
+
 function init() {
-  decorateDirectoryList();
-  observeDirectory();
+  waitForDirectoryContainer();
 }
 
 init();
 
-document.addEventListener('turbo:load', init);
+document.addEventListener('turbo:load', () => {
+  if (containerObserver) {
+    containerObserver.disconnect();
+    containerObserver = null;
+  }
+  waitForDirectoryContainer();
+});
