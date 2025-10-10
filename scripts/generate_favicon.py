@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-Generate a favicon.ico for the extension.
+Generate an icon.ico for the extension.
 
 This creates a simple 128x128 icon that renders the letters "GH"
 on a blue gradient background, then saves the multi-size ICO file
-to the repository root as favicon.ico.
+to assets/icon.ico.
 
 Requires Pillow (`pip install pillow`).
 """
@@ -12,7 +12,7 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
 
-OUTPUT_PATH = Path(__file__).resolve().parent.parent / "favicon.ico"
+OUTPUT_PATH = Path(__file__).resolve().parent.parent / "assets" / "icon.ico"
 ICON_SIZES = [16, 32, 48, 64, 128]
 
 
@@ -44,10 +44,11 @@ def generate_icon(size: int) -> Image.Image:
 
 
 def main() -> None:
+    OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     icons = [generate_icon(size) for size in ICON_SIZES]
     # Pillow saves ICO from largest image, including provided sizes.
     icons[0].save(OUTPUT_PATH, sizes=[icon.size for icon in icons])
-    print(f"Generated favicon at {OUTPUT_PATH}")
+    print(f"Generated icon at {OUTPUT_PATH}")
 
 
 if __name__ == "__main__":

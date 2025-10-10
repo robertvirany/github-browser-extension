@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
-  "name": "GitHub Helper: LOC & Dir Counts",
-  "description": "Augments GitHub repo file lists with LOC for files and entry counts for directories.",
+  "name": "Github Helper",
+  "description": "Augments Github repo file lists with loc for files and entry counts for directories.",
   "version": "0.1.0",
   "permissions": [
     "storage"
@@ -24,17 +24,17 @@
     }
   ],
   "action": {
-    "default_title": "GitHub Helper",
+    "default_title": "Github Helper",
     "default_popup": "src/popup.html",
     "default_icon": {
-      "16": "assets/favicon.ico",
-      "32": "assets/favicon.ico"
+      "16": "assets/icon.ico",
+      "32": "assets/icon.ico"
     }
   },
   "icons": {
-    "16": "assets/favicon.ico",
-    "32": "assets/favicon.ico",
-    "48": "assets/favicon.ico",
-    "128": "assets/favicon.ico"
+    "16": "assets/icon.ico",
+    "32": "assets/icon.ico",
+    "48": "assets/icon.ico",
+    "128": "assets/icon.ico"
   }
 }
