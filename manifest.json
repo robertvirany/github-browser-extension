@@ -25,6 +25,16 @@
   ],
   "action": {
     "default_title": "GitHub Helper",
-    "default_popup": "src/popup.html"
+    "default_popup": "src/popup.html",
+    "default_icon": {
+      "16": "assets/favicon.ico",
+      "32": "assets/favicon.ico"
+    }
+  },
+  "icons": {
+    "16": "assets/favicon.ico",
+    "32": "assets/favicon.ico",
+    "48": "assets/favicon.ico",
+    "128": "assets/favicon.ico"
   }
 }
