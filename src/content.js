@@ -18,20 +18,49 @@ async function getLOC(blobUrl) {
   }
 }
 
+const dirCountCache = new Map();
+
 async function getDirChildrenCount(fileHref) {
+  if (dirCountCache.has(fileHref)) {
+    return dirCountCache.get(fileHref);
+  }
+
   // fileHref looks like /user/repo/tree/branch/path
-  const m = fileHref.match(/^\/([^/]+)\/([^/]+)\/tree\/([^/]+)\/(.*)$/);
+  const m = fileHref.match(/^\/([^/]+)\/([^/]+)\/tree\/([^/]+)(?:\/(.*))?$/);
   if (!m) return null;
-  const [, owner, repo, branch, path] = m;
+  const [, owner, repo, branch, path = ''] = m;
 
-  const url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}?ref=${branch}`;
-  const res = await fetch(url, {
-    headers: { 'Accept': 'application/vnd.github.v3+json' }
-  });
-  if (!res.ok) return null;
+  const pathSegments = path ? path.split('/').map(encodeURIComponent).join('/') : '';
+  const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents${pathSegments ? `/${pathSegments}` : ''}?ref=${branch}`;
 
-  const items = await res.json();
-  return items.length;
+  try {
+    const apiRes = await fetch(apiUrl, {
+      headers: { 'Accept': 'application/vnd.github.v3+json' }
+    });
+    if (apiRes.ok) {
+      const items = await apiRes.json();
+      const count = Array.isArray(items) ? items.length : null;
+      dirCountCache.set(fileHref, count);
+      return count;
+    }
+
+    const pageRes = await fetch(fileHref, { credentials: 'same-origin' });
+    if (!pageRes.ok) {
+      dirCountCache.set(fileHref, null);
+      return null;
+    }
+
+    const html = await pageRes.text();
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    const anchors = [...doc.querySelectorAll('.react-directory-truncate a.Link--primary')];
+    const count = anchors.filter(a => a.textContent.trim() !== '..').length;
+    dirCountCache.set(fileHref, count);
+    return count;
+  } catch (err) {
+    console.error('Failed to fetch directory listing:', err);
+    dirCountCache.set(fileHref, null);
+    return null;
+  }
 }
 
 
