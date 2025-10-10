@@ -12,13 +12,4 @@ Install in Microsoft Edge
 4. Click “Load unpacked” and select this folder.
 5. Navigate to any GitHub repo page and the badges will appear.
 
-TODO
-- BUG: loc overcounts by 1
-- Fix branches, HEAD is current version
-- Add dir support
-- Add caching to not piss off Github
-- Make popup non-shit
-- Make... faster?
-- Icon
-- BUG: getting "- loc" on robertvirany/dotfiles. Probably due to private repos? Could implement gh api fetching instead of normal file.href under const loc = to handle auth
-- Add .. support
+See `TODO.md` for the current roadmap and outstanding tasks.
