@@ -74,9 +74,10 @@ async function getLOC(blobUrl) {
 
     const html = await fallbackRes.text();
     const doc = new DOMParser().parseFromString(html, 'text/html');
-    const highlighted = doc.querySelectorAll('table.js-file-line-container tr');
-    if (highlighted.length) {
-      const count = highlighted.length;
+    const highlightedTable = doc.querySelector('table.js-file-line-container');
+    if (highlightedTable) {
+      const lines = [...highlightedTable.querySelectorAll('td.blob-code')].map(cell => cell.textContent ?? '');
+      const count = countLines(lines.join('\n'));
       fileLocCache.set(blobUrl, count);
       return count;
     }
