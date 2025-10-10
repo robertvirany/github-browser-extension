@@ -4,18 +4,55 @@ function blobToRawUrl(blobUrl) {
     .replace('/blob/', '/');
 }
 
+const fileLocCache = new Map();
+
 async function getLOC(blobUrl) {
+  if (fileLocCache.has(blobUrl)) {
+    return fileLocCache.get(blobUrl);
+  }
+
   const rawUrl = blobToRawUrl(blobUrl);
+
   try {
     const res = await fetch(rawUrl);
-    if (!res.ok) return null; //could be binary or deleted
-    const text = await res.text();
-    const lines = text.split('\n').length;
-    return lines;
-  } catch(err) {
-    console.error('Failed to fetch file:', err);
-    return null;
+    if (res.ok) {
+      const text = await res.text();
+      const lines = text.split('\n').length;
+      fileLocCache.set(blobUrl, lines);
+      return lines;
+    }
+  } catch (err) {
+    console.error('Failed to fetch raw file:', err);
   }
+
+  try {
+    const fallbackRes = await fetch(blobUrl, { credentials: 'same-origin' });
+    if (!fallbackRes.ok) {
+      fileLocCache.set(blobUrl, null);
+      return null;
+    }
+
+    const html = await fallbackRes.text();
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    const highlighted = doc.querySelectorAll('table.js-file-line-container tr');
+    if (highlighted.length) {
+      const count = highlighted.length;
+      fileLocCache.set(blobUrl, count);
+      return count;
+    }
+
+    const plain = doc.querySelector('pre');
+    if (plain) {
+      const count = plain.textContent.split('\n').length;
+      fileLocCache.set(blobUrl, count);
+      return count;
+    }
+  } catch (err) {
+    console.error('Failed to fetch file via blob page:', err);
+  }
+
+  fileLocCache.set(blobUrl, null);
+  return null;
 }
 
 const dirCountCache = new Map();
@@ -53,7 +90,13 @@ async function getDirChildrenCount(fileHref) {
     const html = await pageRes.text();
     const doc = new DOMParser().parseFromString(html, 'text/html');
     const anchors = [...doc.querySelectorAll('.react-directory-truncate a.Link--primary')];
-    const count = anchors.filter(a => a.textContent.trim() !== '..').length;
+    const entries = anchors.filter(anchor => {
+      const text = anchor.textContent.trim();
+      if (text === '..') return false;
+      const label = anchor.getAttribute('aria-label') || '';
+      return label.includes('(File)') || label.includes('(Directory)');
+    });
+    const count = entries.length;
     dirCountCache.set(fileHref, count);
     return count;
   } catch (err) {
