@@ -153,19 +153,60 @@ async function getDirChildrenCount(fileHref) {
 
 
 async function decorateEntry(file) {
-  // Skip if bubble exists
-  if (file.nextSibling && file.nextSibling.classList?.contains('loc-bubble')) return;
+  let wrapper = file.__locWrapper;
+  if (!wrapper) {
+    wrapper = document.createElement('span');
+    wrapper.className = 'loc-bubble-wrapper';
+    file.__locWrapper = wrapper;
+  }
+
+  const sibling = file.nextSibling;
+  if (sibling?.classList?.contains('loc-bubble-wrapper') && sibling !== wrapper) {
+    sibling.remove();
+  }
+
+  const contentHost = file.querySelector('.DirectoryRow-module__Box--uM44V');
+  if (contentHost) {
+    const existing = contentHost.querySelector(':scope > .loc-bubble-wrapper');
+    if (existing && existing !== wrapper) existing.remove();
+    if (!contentHost.contains(wrapper)) contentHost.appendChild(wrapper);
+  }
+
+  if (!contentHost && wrapper.previousSibling !== file) {
+    file.insertAdjacentElement('afterend', wrapper);
+  }
+
+  let bubble = wrapper.querySelector('.loc-bubble');
+  if (!bubble) {
+    bubble = document.createElement('span');
+    bubble.className = 'loc-bubble';
+    wrapper.appendChild(bubble);
+  }
+
+  bubble.textContent = '...';
 
   const href = file.getAttribute('href');
-  if (!href) return;
+  const aria = file.getAttribute('aria-label') || '';
+  const ariaLower = aria.toLowerCase();
+  const dataTestId = file.dataset.testid || '';
+  const text = file.textContent.trim();
 
-  // Insert temporary bubble
-  const bubble = document.createElement('span');
-  bubble.className = 'loc-bubble';
-  bubble.textContent = '...'; // loading
-  file.insertAdjacentElement('afterend', bubble);
+  const isParentLink = text === '..' || dataTestId === 'up-tree' || ariaLower.includes('parent directory');
+  const isFile = ariaLower.includes('(file)') || dataTestId.startsWith('tree-item-file');
+  const isDirectory =
+    isParentLink ||
+    ariaLower.includes('(directory)') ||
+    ariaLower.includes('directory') ||
+    ariaLower.includes('folder') ||
+    dataTestId.startsWith('tree-item-dir');
 
-  if (file.getAttribute('aria-label')?.includes('(File)')) {
+  if (!href) {
+    bubble.textContent = '-';
+    bubble.title = 'Missing link target';
+    return;
+  }
+
+  if (isFile && !isDirectory) {
     const loc = await getLOC(file.href);
     if (loc !== null) {
       bubble.textContent = `${loc} loc`;
@@ -177,7 +218,7 @@ async function decorateEntry(file) {
     return;
   }
 
-  if (file.getAttribute('aria-label')?.includes('(Directory)')) {
+  if (isDirectory) {
     const childCount = await getDirChildrenCount(href);
     if (childCount !== null) {
       bubble.textContent = `${childCount} items`;
@@ -186,11 +227,24 @@ async function decorateEntry(file) {
       bubble.textContent = '-';
       bubble.title = 'Could not fetch child count';
     }
+    return;
   }
+
+  bubble.textContent = '-';
+  bubble.title = 'Unknown entry type';
 }
 
+const ENTRY_SELECTOR = [
+  '.react-directory-truncate a.Link--primary',
+  '.react-directory-truncate a.js-navigation-open',
+  '.js-navigation-container a.Link--primary',
+  '.js-navigation-container a.js-navigation-open',
+  'a[data-testid="up-tree"]',
+  'a[data-testid^="tree-item"]'
+].join(', ');
+
 async function decorateDirectoryList() {
-  const entries = document.querySelectorAll('.react-directory-truncate a.Link--primary');
+  const entries = document.querySelectorAll(ENTRY_SELECTOR);
   await Promise.all([...entries].map(decorateEntry));
 }
 
@@ -200,20 +254,20 @@ let containerObserver;
 
 function nodeContainsDirectoryEntry(node) {
   if (node instanceof Element) {
-    if (node.matches('.react-directory-truncate') && node.querySelector('a.Link--primary')) {
+    if (node.matches('.react-directory-truncate, .js-navigation-container') && node.querySelector(ENTRY_SELECTOR)) {
       return true;
     }
-    if (node.matches('a.Link--primary')) {
+    if (node.matches(ENTRY_SELECTOR)) {
       return true;
     }
-    if (node.querySelector('.react-directory-truncate a.Link--primary')) {
+    if (node.querySelector(ENTRY_SELECTOR)) {
       return true;
     }
     return false;
   }
 
   if (node instanceof DocumentFragment) {
-    return Boolean(node.querySelector('.react-directory-truncate a.Link--primary'));
+    return Boolean(node.querySelector(ENTRY_SELECTOR));
   }
 
   return false;
@@ -250,7 +304,7 @@ function attachDirectoryObserver() {
 }
 
 function waitForDirectoryContent() {
-  const hasEntries = document.querySelector('.react-directory-truncate a.Link--primary');
+  const hasEntries = document.querySelector(ENTRY_SELECTOR);
   if (hasEntries) {
     decorateDirectoryList();
     attachDirectoryObserver();
@@ -272,7 +326,7 @@ function waitForDirectoryContent() {
         }
       }
 
-      if (document.querySelector('.react-directory-truncate a.Link--primary')) {
+      if (document.querySelector(ENTRY_SELECTOR)) {
         containerObserver.disconnect();
         containerObserver = null;
         decorateDirectoryList();

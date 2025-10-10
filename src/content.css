@@ -1,11 +1,18 @@
+.loc-bubble-wrapper {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 6px;
+}
+
 .loc-bubble {
-  margin-left: 6px; /* pushes it right side in flex row */
-  font-size: 12px;
+  font-size: 12px !important;
+  font-weight: 400 !important;
+  line-height: 20px !important;
+  letter-spacing: normal !important;
+  white-space: nowrap;
   color: #57606a;
   background: #f6f8fa;
   border: 1px solid #d0d7de;
   border-radius: 2em;
   padding: 0 6px;
-  line-height: 20px;
-  white-space: nowrap;
 }
