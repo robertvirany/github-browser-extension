@@ -20,13 +20,17 @@ function blobToSameOriginRaw(blobUrl) {
 
 function countLines(text) {
   if (text === '') return 0;
-  if (text.endsWith('\n')) {
-    // drop the trailing empty element introduced by the newline
-    const withoutTrailingNewline = text.slice(0, -1);
-    if (withoutTrailingNewline === '') return 0;
-    return withoutTrailingNewline.split('\n').length;
+
+  // Normalize Windows line endings to Unix before splitting.
+  let normalized = text.replace(/\r\n/g, '\n');
+
+  if (normalized.endsWith('\n')) {
+    // Drop the trailing newline to avoid counting the empty split fragment.
+    normalized = normalized.slice(0, -1);
+    if (normalized === '') return 0;
   }
-  return text.split('\n').length;
+
+  return normalized.split('\n').length;
 }
 
 const fileLocCache = new Map();
