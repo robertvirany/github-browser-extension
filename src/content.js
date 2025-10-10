@@ -149,20 +149,20 @@ async function getDirChildrenCount(fileHref) {
 
 
 
-document.querySelectorAll('.react-directory-truncate a.Link--primary').forEach(async file => {
-
+async function decorateEntry(file) {
   // Skip if bubble exists
-  if (file.nextSibling && file.nextSibling.classList?.contains('loc-bubble')) return
-  
-  //Insert temporary bubble
+  if (file.nextSibling && file.nextSibling.classList?.contains('loc-bubble')) return;
+
+  const href = file.getAttribute('href');
+  if (!href) return;
+
+  // Insert temporary bubble
   const bubble = document.createElement('span');
   bubble.className = 'loc-bubble';
-  bubble.textContent = '...'; //loading
+  bubble.textContent = '...'; // loading
   file.insertAdjacentElement('afterend', bubble);
 
   if (file.getAttribute('aria-label')?.includes('(File)')) {
-
-    // Fetch LOC and update
     const loc = await getLOC(file.href);
     if (loc !== null) {
       bubble.textContent = `${loc} loc`;
@@ -171,12 +171,11 @@ document.querySelectorAll('.react-directory-truncate a.Link--primary').forEach(a
       bubble.textContent = '-';
       bubble.title = 'Could not fetch loc';
     }
+    return;
   }
 
   if (file.getAttribute('aria-label')?.includes('(Directory)')) {
-    // implement dir logic. Basically if more than 2k loc show number of children
-
-    const childCount = await getDirChildrenCount(file.getAttribute('href'));
+    const childCount = await getDirChildrenCount(href);
     if (childCount !== null) {
       bubble.textContent = `${childCount} items`;
       bubble.title = `${childCount} immediate children`;
@@ -184,7 +183,40 @@ document.querySelectorAll('.react-directory-truncate a.Link--primary').forEach(a
       bubble.textContent = '-';
       bubble.title = 'Could not fetch child count';
     }
+  }
+}
 
+async function decorateDirectoryList(root = document) {
+  const entries = root.querySelectorAll('.react-directory-truncate a.Link--primary');
+  await Promise.all([...entries].map(decorateEntry));
+}
+
+let directoryObserver;
+
+function observeDirectory(root = document) {
+  const container = root.querySelector('.react-directory-truncate');
+  if (!container) return;
+
+  if (directoryObserver) {
+    directoryObserver.disconnect();
   }
 
-});
+  directoryObserver = new MutationObserver(() => {
+    // defer execution to batch mutations
+    queueMicrotask(() => decorateDirectoryList(container));
+  });
+
+  directoryObserver.observe(container, {
+    subtree: true,
+    childList: true
+  });
+}
+
+function init() {
+  decorateDirectoryList();
+  observeDirectory();
+}
+
+init();
+
+document.addEventListener('turbo:load', init);
