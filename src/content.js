@@ -21,14 +21,12 @@ function blobToSameOriginRaw(blobUrl) {
 function countLines(text) {
   if (text === '') return 0;
 
-  // Normalize Windows line endings to Unix before splitting.
-  let normalized = text.replace(/\r\n/g, '\n');
+  // Normalize line endings to Unix before splitting.
+  let normalized = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
 
-  if (normalized.endsWith('\n')) {
-    // Drop the trailing newline to avoid counting the empty split fragment.
-    normalized = normalized.slice(0, -1);
-    if (normalized === '') return 0;
-  }
+  // Strip all trailing newline characters so blank placeholder rows don't inflate the count.
+  normalized = normalized.replace(/\n+$/, '');
+  if (normalized === '') return 0;
 
   return normalized.split('\n').length;
 }
