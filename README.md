@@ -11,5 +11,3 @@ Install in Microsoft Edge
 3. Enable “Developer mode”.
 4. Click “Load unpacked” and select this folder.
 5. Navigate to any GitHub repo page and the badges will appear.
-
-See `TODO.md` for the current roadmap and outstanding tasks.
