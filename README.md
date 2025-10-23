@@ -1,5 +1,7 @@
 GitHub Helper: LOC & Dir Counts (Edge Extension)
 
+![screenshot](assets/demo.png)
+
 What it does
 - Adds a small badge next to each entry in GitHub repository file lists.
 - For files: shows lines of code (LOC), counted from the raw file.
